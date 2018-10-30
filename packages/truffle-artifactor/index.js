@@ -1,12 +1,22 @@
-var Schema = require("truffle-contract-schema");
-var fs = require("fs-extra");
-var path = require("path");
-var _ = require("lodash");
-var debug = require("debug")("artifactor");
+const Schema = require("truffle-contract-schema");
+const fs = require("fs-extra");
+const path = require("path");
+const _ = require("lodash");
+const debug = require("debug")("artifactor");
+const Config = require("truffle-config");
 
 function Artifactor(destination) {
-  this.destination = destination;
-};
+  let config = Config.search();
+
+  if (config) {
+    config = Config.detect();
+    config.artifactor
+      ? config.artifactor(destination)
+      : (this.destination = destination);
+  } else {
+    this.destination = destination;
+  }
+}
 
 Artifactor.prototype.save = function(object) {
   var self = this;
@@ -27,7 +37,7 @@ Artifactor.prototype.save = function(object) {
     // Add json extension.
     output_path = output_path + ".json";
 
-    fs.readFile(output_path, {encoding: "utf8"}, function(err, json) {
+    fs.readFile(output_path, { encoding: "utf8" }, function(err, json) {
       // No need to handle the error. If the file doesn't exist then we'll start afresh
       // with a new object.
 
@@ -57,10 +67,15 @@ Artifactor.prototype.save = function(object) {
       finalObject.updatedAt = new Date().toISOString();
 
       // output object
-      fs.outputFile(output_path, JSON.stringify(finalObject, null, 2), "utf8", function(err) {
-        if (err) return reject(err);
-        accept();
-      });
+      fs.outputFile(
+        output_path,
+        JSON.stringify(finalObject, null, 2),
+        "utf8",
+        function(err) {
+          if (err) return reject(err);
+          accept();
+        }
+      );
     });
   });
 };
@@ -78,9 +93,11 @@ Artifactor.prototype.saveAll = function(objects) {
   }
 
   return new Promise(function(accept, reject) {
-    fs.stat(self.destination, function(err, stat) {
+    fs.stat(self.destination, function(err) {
       if (err) {
-        return reject(new Error("Desination " + self.destination + " doesn't exist!"));
+        return reject(
+          new Error("Desination " + self.destination + " doesn't exist!")
+        );
       }
       accept();
     });
